@@ -8,9 +8,14 @@ clear all;
 %******************
 % Source Parameters
 %******************
-lam0 = 2 * 10^-3;   %Free Space Wavelength
+lam0 = 2 * 10^-2;   %Free Space Wavelength
 ginc = [0;0;1];     %Incident wave vector
 EP = [0;1;0];       %Source Polarization
+theta = 0;
+phi = 0;
+pte = 1;
+ptm = 0;
+
 
 %***********************
 % Trans / Ref Parameters
@@ -40,7 +45,7 @@ w = 0.8 * Ly;
 %****************
 Nx = 512;                 %x points in real-space grid
 Ny = round(Nx * Ly / Lx); %y points in real-space grid
-PQ = 1 * [1, 1];          %number of spatial harmonics for x, y
+PQ = 3 * [1 1];           %number of spatial harmonics for x, y
 
 %***********************************************************************
 % Build Device on grid
@@ -71,10 +76,43 @@ for ny = ny1:ny2
   ER(nx1:nx2,ny,1) = erR;
 end
 
-h = surf(ER(:,:,1),'EdgeColor','None','facecolor','interp');
-colormap(jet);
-colorbar;
-view(2)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Calculate Kx, Ky, Kz Matrices <- NOT FINISHED
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ninc = sqrt(erR *urR);
+kinc = ninc.*[sin(theta)*cos(phi),sin(theta)*sin(phi),cos(theta)];
+k0 = 2*pi / lam0;
+
+m = 1;
+n = 1;
+for M = -PQ(1):PQ(1)
+  kx(m) = kinc(1) - (2*pi*M) / (k0*Lx); 
+  n = 1;
+  for N = -PQ(2):PQ(2)
+    ky(n) = kinc(2) - (2*pi*N) / (k0*Ly);
+    kz_ref(m,n) = sqrt(urR*erR - kx(m)^2 - ky(n)^2);
+    kz_trn(m,n) = sqrt(urT*erT - kx(m)^2 - ky(n)^2);
+    n=n+1;
+  end
+  m = m+1;
+end
+
+Kx = diag(kx(:))
+Ky = diag(ky(:));
+Kz_ref = kz_ref(:,:);
+Kz_trn = kz_trn(:,:);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   Reflection Side Matrices
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%for i = 1:length(L)
+%    ERC = convmat(ER(:,:,i),PQ(1),PQ(2));
+%    URC = convmat(UR(:,:,i),PQ(1),PQ(2)); 
+%end
+
+
 
 
 
