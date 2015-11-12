@@ -88,7 +88,9 @@ m = 1;
 n = 1;
 pqm = 1;
 pqn = 1;
-pq = [-1 0 1]; %See UTEP RCWA Implementation
+pq_bound = floor(Nharmonics/2);
+pq2 = -pq_bound:pq_bound;
+
 while(m <= Nharmonics^2)
   kx(m) = kinc(1) - pq(pqm)*(2*pi) / (k0*Lx); 
   n = 1;
@@ -114,8 +116,8 @@ Ky = diag(ky(:));
 Kz_ref = diag(diag(kz_ref(:,:)));
 Kz_trn = diag(diag(kz_trn(:,:)));
 
-for m = 1:Nharmonics
-    for n = 
+%for m = 1:Nharmonics
+    %for n = 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   Reflection Side Matrices
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
