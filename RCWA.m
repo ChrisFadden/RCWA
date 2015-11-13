@@ -78,7 +78,7 @@ end
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Calculate Kx, Ky, Kz Matrices <- NOT FINISHED
+% Calculate Kx, Ky, Kz Matrices 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 ninc = sqrt(erR *urR);
 kinc = ninc.*[sind(theta)*cosd(phi),sind(theta)*sind(phi),cosd(theta)];
@@ -89,7 +89,7 @@ n = 1;
 pqm = 1;
 pqn = 1;
 pq_bound = floor(Nharmonics/2);
-pq2 = -pq_bound:pq_bound;
+pq = -pq_bound:pq_bound;
 
 while(m <= Nharmonics^2)
   kx(m) = kinc(1) - pq(pqm)*(2*pi) / (k0*Lx); 
@@ -116,20 +116,24 @@ Ky = diag(ky(:));
 Kz_ref = diag(diag(kz_ref(:,:)));
 Kz_trn = diag(diag(kz_trn(:,:)));
 
-%for m = 1:Nharmonics
-    %for n = 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%   Reflection Side Matrices
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   Free Space Calculation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Kz_0 = conj(sqrt(eye(Nharmonics^2) - Kx.^2 - Ky.^2));
 
-%for i = 1:length(L)
-%    ERC = convmat(ER(:,:,i),PQ(1),PQ(2));
-%    URC = convmat(UR(:,:,i),PQ(1),PQ(2)); 
-%end
+Q0 = zeros(2*Nharmonics^2,2*Nharmonics^2);
+Q0(1:Nharmonics^2,1:Nharmonics^2) = Kx * Ky;
+Q0(Nharmonics^2+1:end,Nharmonics^2+1:end) = -Kx * Ky;
+Q0(1:Nharmonics^2,Nharmonics^2+1:end) = eye(Nharmonics^2) - Kx.^2;
+Q0(Nharmonics^2+1:end,1:Nharmonics^2) = Ky.^2 - eye(Nharmonics^2);
 
+W0 = eye(2*Nharmonics^2);
 
+LAM0 = zeros(2*Nharmonics^2,2*Nharmonics^2);
+LAM0(1:Nharmonics^2,1:Nharmonics^2) = 1j.*Kz_0;
+LAM0(Nharmonics^2+1:end,Nharmonics^2+1:end) = 1j.*Kz_0;
 
-
+V0 = Q0 * inv(LAM0);
 
 
 
