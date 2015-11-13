@@ -76,6 +76,10 @@ for ny = ny1:ny2
   ER(nx1:nx2,ny,1) = erR;
 end
 
+for layer = 1:length(L)
+    ERC(:,:,layer) = convmat(ER(:,:,layer),Nharmonics,Nharmonics);
+    URC(:,:,layer) = convmat(UR(:,:,layer),Nharmonics,Nharmonics);
+end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Calculate Kx, Ky, Kz Matrices 
@@ -135,14 +139,74 @@ LAM0(Nharmonics^2+1:end,Nharmonics^2+1:end) = 1j.*Kz_0;
 
 V0 = Q0 * inv(LAM0);
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   Reflection Side Calculation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Qref = zeros(2*Nharmonics^2,2*Nharmonics^2);
+Qref(1:Nharmonics^2,1:Nharmonics^2) = Kx * Ky;
+Qref(1:Nharmonics^2,Nharmonics^2+1:end) = urR*erR * eye(Nharmonics^2) - Kx.^2;
+Qref(Nharmonics^2+1:end,1:Nharmonics^2) = Ky.^2 - urR*erR * eye(Nharmonics^2);
+Qref(Nharmonics^2+1:end,Nharmonics^2+1:end) = -Ky * Kx;
+Qref = Qref ./ urR;
 
+Wref = eye(2*Nharmonics^2);
 
+LAMref = zeros(2*Nharmonics^2,2*Nharmonics^2);
+LAMref(1:Nharmonics^2,1:Nharmonics^2) = 1j.*Kz_ref;
+LAMref(Nharmonics^2+1:end,Nharmonics^2+1:end) = 1j.*Kz_ref;
 
+Vref = Qref * inv(LAMref);
 
+Aref = inv(W0)*Wref + inv(V0)*Vref;
+Bref = inv(W0)*Wref - inv(V0)*Vref;
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   Transmission Side Calculation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+Qtrn = zeros(2*Nharmonics^2,2*Nharmonics^2);
+Qtrn(1:Nharmonics^2,1:Nharmonics^2) = Kx * Ky;
+Qtrn(1:Nharmonics^2,Nharmonics^2+1:end) = urT*erT * eye(Nharmonics^2) - Kx.^2;
+Qtrn(Nharmonics^2+1:end,1:Nharmonics^2) = Ky.^2 - urT*erT * eye(Nharmonics^2);
+Qtrn(Nharmonics^2+1:end,Nharmonics^2+1:end) = -Ky * Kx;
+Qtrn = Qtrn ./ urT;
 
+Wtrn = eye(2*Nharmonics^2);
 
+LAMtrn = zeros(2*Nharmonics^2,2*Nharmonics^2);
+LAMtrn(1:Nharmonics^2,1:Nharmonics^2) = 1j.*Kz_trn;
+LAMtrn(Nharmonics^2+1:end,Nharmonics^2+1:end) = 1j.*Kz_trn;
+
+Vtrn = Qtrn * inv(LAMtrn);
+
+Atrn = inv(W0)*Wtrn + inv(V0)*Vtrn;
+Btrn = inv(W0)*Wtrn - inv(V0)*Vtrn;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   Layer Loop Calculation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+for layer = 1:length(L)
+  Pi = zeros(2*Nharmonics^2,2*Nharmonics^2);
+  Pi(1:Nharmonics^2,1:Nharmonics^2) = Kx*inv(ERC(:,:,layer))*Ky;
+  Pi(Nharmonics^2+1:end,1:Nharmonics^2) = URC(:,:,layer) - Kx*inv(ERC(:,:,layer))*Kx;
+  Pi(1:Nharmonics^2,Nharmonics^2+1:end) = Ky*inv(ERC(:,:,layer))*Ky - URC(:,:,layer);
+  Pi(Nharmonics^2+1:end,Nharmonics^2+1:end) = -Ky*inv(ERC(:,:,layer))*Kx;
+
+  Qi = zeros(2*Nharmonics^2,2*Nharmonics^2);
+  Qi(1:Nharmonics^2,1:Nharmonics^2) = Kx*inv(URC(:,:,layer))*Ky;
+  Qi(Nharmonics^2+1:end,1:Nharmonics^2) = ERC(:,:,layer) - Kx*inv(URC(:,:,layer))*Kx;
+  Qi(1:Nharmonics^2,Nharmonics^2+1:end) = Ky*inv(URC(:,:,layer))*Ky - ERC(:,:,layer);
+  Qi(Nharmonics^2+1:end,Nharmonics^2+1:end) = -Ky*inv(URC(:,:,layer))*Kx;
+
+  [Wi, LAMi] = eig(Pi*Qi);
+  LAMi = sqrt(LAMi);
+  Vi = Qi*Wi*inv(LAMi);
+
+  Ai = inv(Wi)*W0 + inv(Vi)*V0;
+  Bi = inv(Wi)*W0 - inv(Vi)*V0;
+  Xi = expm(-LAMi*k0*L(layer));
+
+end
 
 
 
