@@ -139,6 +139,11 @@ LAM0(Nharmonics^2+1:end,Nharmonics^2+1:end) = 1j.*Kz_0;
 
 V0 = Q0 * inv(LAM0);
 
+SG.S11 = zeros(2*Nharmonics^2,2*Nharmonics^2);
+SG.S21 = eye(2*Nharmonics^2);
+SG.S12 = eye(2*Nharmonics^2);
+SG.S22 = zeros(2*Nharmonics^2,2*Nharmonics^2);
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   Reflection Side Calculation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -160,10 +165,15 @@ Vref = Qref * inv(LAMref);
 Aref = inv(W0)*Wref + inv(V0)*Vref;
 Bref = inv(W0)*Wref - inv(V0)*Vref;
 
+Sref.S11 = -inv(Aref)*Bref;
+Sref.S12 = 2*inv(Aref);
+Sref.S21 = 0.5*(Aref - Bref*inv(Aref)*Bref);
+Sref.S22 = Bref*inv(Aref);
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   Transmission Side Calculation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 Qtrn = zeros(2*Nharmonics^2,2*Nharmonics^2);
 Qtrn(1:Nharmonics^2,1:Nharmonics^2) = Kx * Ky;
 Qtrn(1:Nharmonics^2,Nharmonics^2+1:end) = urT*erT * eye(Nharmonics^2) - Kx.^2;
@@ -181,6 +191,11 @@ Vtrn = Qtrn * inv(LAMtrn);
 
 Atrn = inv(W0)*Wtrn + inv(V0)*Vtrn;
 Btrn = inv(W0)*Wtrn - inv(V0)*Vtrn;
+
+Strn.S11 = Btrn*inv(Atrn);
+Strn.S12 = 0.5*(Atrn - Btrn*inv(Atrn)*Btrn);
+Strn.S21 = 2*inv(Atrn);
+Strn.S22 = -inv(Atrn)*Btrn;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   Layer Loop Calculation
@@ -205,8 +220,17 @@ for layer = 1:length(L)
   Ai = inv(Wi)*W0 + inv(Vi)*V0;
   Bi = inv(Wi)*W0 - inv(Vi)*V0;
   Xi = expm(-LAMi*k0*L(layer));
-
+  
+  Si.S11 = inv(Ai - Xi*Bi*inv(Ai)*Xi*Bi) * (Xi*Bi*inv(Ai)*Xi*Ai - Bi);
+  Si.S12 = inv(Ai - Xi*Bi*inv(Ai)*Xi*Bi) * Xi*(Ai - Bi*inv(Ai)*Bi);
+  Si.S21 = Si.S12;
+  Si.S22 = Si.S11;
+  
+  SG = star(SG,Si);
 end
+
+SG = star(Sref,SG);
+SG = star(SG,Strn);
 
 
 
