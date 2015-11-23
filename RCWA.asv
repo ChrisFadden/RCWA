@@ -1,3 +1,32 @@
+%**********************************************
+%   Rigorous Coupled Wave Analysis
+%   by Christopher Fadden
+%
+%   This code is heavily based on material from
+%   http://emlab.utep.edu/ee5390cem.htm
+%		
+%   Specifically, the lectures on Rigorous Coupled Wave Analysis
+%   and benchmarking provided.  I have used the variable 
+%   name conventions presented there for my implementation.
+%   
+%   This code is implmented assuming infinite propagation in the
+%   z-direction, with periodicity in the x and y directions.  However,
+%   there are allowed to be varying material properties in each layer.
+%
+%   This code uses the Fourier-Space form of Maxwell's equations,
+%   where the curls are implemented as a multiplication by k's.
+%   Because this code mainly deals with linear materials, convolution
+%   matrices are needed.  In the standard space, linear materials multiply
+%   the epsilon and mu by the fields.  In fourier space, the multiplication
+%   becomes convolution.  From there, this code basically implements a more
+%   general form of the Scatter Matrix Method, by forming P and Q matrices,
+%   and deriving the S-matrices for each layer of material, as well as the 
+%   reflection and transmission region.  These S-matrices are combined
+%   using the redheffer star product, and the reflection and transmission
+%   is derived from the diffraction efficiencies using the final gloabl
+%   S-matrix.
+%************************************************
+
 %*************************************************
 % Simulation Parameters
 %*************************************************
@@ -6,15 +35,13 @@ clc;
 clear all;
 
 %******************
-% Source Parameters
+% Source Parameters  (Specific to each simulation)
 %******************
-lam0 = 2 * 10^-2;   %Free Space Wavelength
-ginc = [0;0;1];     %Incident wave vector
-EP = [0;1;0];       %Source Polarization
-theta = 60;
-phi = 30;
-pte = 1 / sqrt(2);
-ptm = j / sqrt(2);
+lam0 = 2 * 10^-2;           %Free Space Wavelength
+theta = 60;                 %Elevation Incident Angle
+phi = 30;                   %Azimuthal Incident Angle
+pte = -0.6124 - 0.1768j;    %Source Polarization
+ptm = 0.3536 - 0.3062j;     %Source Polarization
 
 
 %***********************
@@ -62,7 +89,7 @@ UR = urd * ones(Nx,Ny,2);
 ER = erd * ones(Nx,Ny,2);
 L = [d1, d2];
 
-%Build Triangle (Layer 1)
+%Build Device (Layer 1)
 h = 0.5 * sqrt(3) * w;
 ny = round(h/dy);
 ny1 = round((Ny-ny)/2);
@@ -229,6 +256,9 @@ for layer = 1:length(L)
   SG = star(SG,Si);
 end
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 SG = star(Sref,SG);
 SG = star(SG,Strn);
 
