@@ -200,31 +200,18 @@ Strn.S22 = -inv(Atrn)*Btrn;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   Layer Loop Calculation
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%for layer = 1:length(L)
-layer = 1;
+for layer = 1:length(L)
   Pi = zeros(2*Nharmonics^2,2*Nharmonics^2);
-  Ptest = URC(:,:,layer) - Kx*inv(ERC(:,:,layer))*Kx;
-  %Pi(1:Nharmonics^2,1:Nharmonics^2) = Kx*inv(ERC(:,:,layer))*Ky; 
-  %Pi(Nharmonics^2+1:end,1:Nharmonics^2) = URC(:,:,layer) - Kx*inv(ERC(:,:,layer))*Kx; 
-  %Pi(1:Nharmonics^2,Nharmonics^2+1:end) = Ky*inv(ERC(:,:,layer))*Ky - URC(:,:,layer); 
-  %Pi(Nharmonics^2+1:end,Nharmonics^2+1:end) = -Ky*inv(ERC(:,:,layer))*Kx;
   Pi(1:Nharmonics^2,1:Nharmonics^2) = Kx*inv(ERC(:,:,layer))*Ky; 
   Pi(Nharmonics^2+1:end,1:Nharmonics^2) = Ky*inv(ERC(:,:,layer))*Ky - URC(:,:,layer); 
   Pi(1:Nharmonics^2,Nharmonics^2+1:end) = URC(:,:,layer) - Kx*inv(ERC(:,:,layer))*Kx;
   Pi(Nharmonics^2+1:end,Nharmonics^2+1:end) = -Ky*inv(ERC(:,:,layer))*Kx;
   
-  Qi = zeros(2*Nharmonics^2,2*Nharmonics^2);
-  %Qi(1:Nharmonics^2,1:Nharmonics^2) = Kx*inv(URC(:,:,layer))*Ky;
-  %Qi(Nharmonics^2+1:end,1:Nharmonics^2) = ERC(:,:,layer) - Kx*inv(URC(:,:,layer))*Kx;
-  %Qi(1:Nharmonics^2,Nharmonics^2+1:end) = Ky*inv(URC(:,:,layer))*Ky - ERC(:,:,layer);
-  %Qi(Nharmonics^2+1:end,Nharmonics^2+1:end) = -Ky*inv(URC(:,:,layer))*Kx;
-    
+  Qi = zeros(2*Nharmonics^2,2*Nharmonics^2);    
   Qi(1:Nharmonics^2,1:Nharmonics^2) = Kx*inv(URC(:,:,layer))*Ky;
   Qi(Nharmonics^2+1:end,1:Nharmonics^2) = Ky*inv(URC(:,:,layer))*Ky - ERC(:,:,layer);
   Qi(1:Nharmonics^2,Nharmonics^2+1:end) = ERC(:,:,layer) - Kx*inv(URC(:,:,layer))*Kx;
   Qi(Nharmonics^2+1:end,Nharmonics^2+1:end) = -Ky*inv(URC(:,:,layer))*Kx;
-  
-  
   
   [Wi, LAMi] = eig(Pi*Qi);
   LAMi = sqrt(LAMi);
@@ -240,16 +227,50 @@ layer = 1;
   Si.S22 = Si.S11;
   
   SG = star(SG,Si);
-%end
+end
 
 SG = star(Sref,SG);
 SG = star(SG,Strn);
 
+delta = zeros(Nharmonics^2,1);
+delta(ceil(Nharmonics^2 / 2),1) = 1;
 
+px = delta .* ptm;
+py = delta .* pte;
 
+%%%%%%%%%%%%%%%%%%%%%%
+%   Mode Calculations
+%%%%%%%%%%%%%%%%%%%%%%
+esrc = [px; py];
+csrc = inv(Wref) * esrc;
 
+cref = SG.S11 * csrc;
+ctrn = SG.S21 * csrc;
 
+%%%%%%%%%%%%%%%%%%%%%
+%   Compute Fields
+%%%%%%%%%%%%%%%%%%%%%
+eref = Wref * cref;
+etrn = Wtrn * ctrn;
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%   Compute Reflection / Transmission
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+rx = eref(1:Nharmonics^2);
+ry = eref(Nharmonics^2+1:end);
+rz = inv(Kz_ref) * (Kx*rx + Ky*ry);
+rmag = abs(rx).^2 + abs(ry).^2 + abs(rz).^2;
+R = real(Kz_ref / kinc(3)) * rmag;
+Reflection = sum(R)
+R = reshape(R,[Nharmonics,Nharmonics]);
+
+tx = etrn(1:Nharmonics^2);
+ty = etrn(Nharmonics^2+1:end);
+tz = -inv(Kz_trn) * (Kx*tx + Ky*ty);
+tmag = abs(tx).^2 + abs(ty).^2 + abs(tz).^2;
+T = real(Kz_trn / kinc(3)) * tmag;
+Transmission = sum(T)
+T = reshape(T,[Nharmonics,Nharmonics]);
 
 
 
