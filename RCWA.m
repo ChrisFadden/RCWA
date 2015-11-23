@@ -11,10 +11,10 @@ clear all;
 lam0 = 2 * 10^-2;   %Free Space Wavelength
 ginc = [0;0;1];     %Incident wave vector
 EP = [0;1;0];       %Source Polarization
-theta = 0;
-phi = 0;
-pte = 1;
-ptm = 0;
+theta = 60;
+phi = 30;
+pte = -0.6124 - 0.1768j;
+ptm = 0.3536 - 0.3062j;
 
 
 %***********************
@@ -117,8 +117,8 @@ end
 
 Kx = diag(kx(:));
 Ky = diag(ky(:));
-Kz_ref = diag(diag(kz_ref(:,:)));
-Kz_trn = diag(diag(kz_trn(:,:)));
+Kz_ref = conj(diag(diag(kz_ref(:,:))));
+Kz_trn = conj(diag(diag(kz_trn(:,:))));
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %   Free Space Calculation
@@ -157,8 +157,8 @@ Qref = Qref ./ urR;
 Wref = eye(2*Nharmonics^2);
 
 LAMref = zeros(2*Nharmonics^2,2*Nharmonics^2);
-LAMref(1:Nharmonics^2,1:Nharmonics^2) = 1j.*Kz_ref;
-LAMref(Nharmonics^2+1:end,Nharmonics^2+1:end) = 1j.*Kz_ref;
+LAMref(1:Nharmonics^2,1:Nharmonics^2) = -1 * conj(1j.*Kz_ref);
+LAMref(Nharmonics^2+1:end,Nharmonics^2+1:end) = -1 * conj(1j.*Kz_ref);
 
 Vref = Qref * inv(LAMref);
 
@@ -184,8 +184,8 @@ Qtrn = Qtrn ./ urT;
 Wtrn = eye(2*Nharmonics^2);
 
 LAMtrn = zeros(2*Nharmonics^2,2*Nharmonics^2);
-LAMtrn(1:Nharmonics^2,1:Nharmonics^2) = 1j.*Kz_trn;
-LAMtrn(Nharmonics^2+1:end,Nharmonics^2+1:end) = 1j.*Kz_trn;
+LAMtrn(1:Nharmonics^2,1:Nharmonics^2) = -1*conj(1j.*Kz_trn);
+LAMtrn(Nharmonics^2+1:end,Nharmonics^2+1:end) = -1*conj(1j.*Kz_trn);
 
 Vtrn = Qtrn * inv(LAMtrn);
 
@@ -203,13 +203,13 @@ Strn.S22 = -inv(Atrn)*Btrn;
 for layer = 1:length(L)
   Pi = zeros(2*Nharmonics^2,2*Nharmonics^2);
   Pi(1:Nharmonics^2,1:Nharmonics^2) = Kx*inv(ERC(:,:,layer))*Ky; 
-  Pi(Nharmonics^2+1:end,1:Nharmonics^2) = Ky*inv(ERC(:,:,layer))*Ky - URC(:,:,layer); 
-  Pi(1:Nharmonics^2,Nharmonics^2+1:end) = URC(:,:,layer) - Kx*inv(ERC(:,:,layer))*Kx;
+  Pi(Nharmonics^2+1:end,1:Nharmonics^2) = Ky*inv(ERC(:,:,layer))*Ky - URC(:,:,layer);
+  Pi(1:Nharmonics^2,Nharmonics^2+1:end) = URC(:,:,layer) - Kx*inv(ERC(:,:,layer))*Kx;  
   Pi(Nharmonics^2+1:end,Nharmonics^2+1:end) = -Ky*inv(ERC(:,:,layer))*Kx;
   
   Qi = zeros(2*Nharmonics^2,2*Nharmonics^2);    
   Qi(1:Nharmonics^2,1:Nharmonics^2) = Kx*inv(URC(:,:,layer))*Ky;
-  Qi(Nharmonics^2+1:end,1:Nharmonics^2) = Ky*inv(URC(:,:,layer))*Ky - ERC(:,:,layer);
+  Qi(Nharmonics^2+1:end,1:Nharmonics^2) = Ky*inv(URC(:,:,layer))*Ky - ERC(:,:,layer); 
   Qi(1:Nharmonics^2,Nharmonics^2+1:end) = ERC(:,:,layer) - Kx*inv(URC(:,:,layer))*Kx;
   Qi(Nharmonics^2+1:end,Nharmonics^2+1:end) = -Ky*inv(URC(:,:,layer))*Kx;
   
