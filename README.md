@@ -1,2 +1,2 @@
 # PWEM
-MATLAB Implementation of the Plane Wave Expansion Method
+MATLAB Implementation of the Rigorous Coupled Wave Analysis and Plane Wave Expansion Method
