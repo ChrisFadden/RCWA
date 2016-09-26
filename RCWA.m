@@ -1,32 +1,3 @@
-%**********************************************
-%   Rigorous Coupled Wave Analysis
-%   by Christopher Fadden
-%
-%   This code is heavily based on material from
-%   http://emlab.utep.edu/ee5390cem.htm
-%		
-%   Specifically, the lectures on Rigorous Coupled Wave Analysis
-%   and benchmarking provided.  I have used the variable 
-%   name conventions presented there for my implementation.
-%   
-%   This code is implmented assuming infinite propagation in the
-%   z-direction, with periodicity in the x and y directions.  However,
-%   there are allowed to be varying material properties in each layer.
-%
-%   This code uses the Fourier-Space form of Maxwell's equations,
-%   where the curls are implemented as a multiplication by k's.
-%   Because this code mainly deals with linear materials, convolution
-%   matrices are needed.  In the standard space, linear materials multiply
-%   the epsilon and mu by the fields.  In fourier space, the multiplication
-%   becomes convolution.  From there, this code basically implements a more
-%   general form of the Scatter Matrix Method, by forming P and Q matrices,
-%   and deriving the S-matrices for each layer of material, as well as the 
-%   reflection and transmission region.  These S-matrices are combined
-%   using the redheffer star product, and the reflection and transmission
-%   is derived from the diffraction efficiencies using the final gloabl
-%   S-matrix.
-%************************************************
-
 %*************************************************
 % Simulation Parameters
 %*************************************************
@@ -34,274 +5,83 @@ close all;
 clc;
 clear all;
 
-%******************
-% Source Parameters  (Specific to each simulation)
-%******************
-lam0 = 2 * 10^-2;           %Free Space Wavelength
-theta = 60;                 %Elevation Incident Angle
-phi = 30;                   %Azimuthal Incident Angle
-pte = -0.6124 - 0.1768j;    %Source Polarization
-ptm = 0.3536 - 0.3062j;     %Source Polarization
-
-
-%***********************
-% Trans / Ref Parameters
-%***********************
-urR = 1.0;  %Permeability of Reflection Region
-erR = 2.0;  %Permittivity of Reflection Region
-urT = 1.0;  %Permeability of Transmission Region
-erT = 9.0;  %Permittivity of Transmission Region
-
-%******************
-% Device Parameters
-%******************
-urd = 1.0;  %Permeability of device
-erd = 6.0;  %Permittivity of device
-
-%*****************
-% Layer Parameters
-%*****************
-Lx = 17.5 * 10^(-3);  %period in x-direction
-Ly = 15 * 10^(-3);    %period in y-direction
-d1 = 5 * 10^(-3);     %thickness of layer 1
-d2 = 3 * 10^(-3);     %thickness of layer 2
-w = 0.8 * Ly;
-
 %****************
 % RCWA Parameters
 %****************
-Nx = 512;                 %x points in real-space grid
-Ny = round(Nx * Ly / Lx); %y points in real-space grid
-Nharmonics = 3;           %number of spatial harmonics for x, y
+Nx = 512;                     %x points in real-space grid
+NH = 3;               %number of spatial harmonics for x, y
+N = NH^2;             %size of matrices
 
-%***********************************************************************
-% Build Device on grid
-%***********************************************************************
-dx = Lx / Nx;       %grid resolution in x
-dy = Ly / Ny;       %grid resolution in y
-xa = [0:Nx-1] * dx; %x axis array
-xa = xa - mean(xa); %center x array at 0
-ya = [0:Ny-1] * dy; %y axis array
-ya = ya - mean(ya); %center y array at 0
+%*******************
+%   Read Data files
+%*******************
+[grid,Ny]   = setupGrid('grid.mat',Nx);
+src = setupSrc('src.mat',N);
+[device,grid] = setupDevice('device.mat',grid,Nx,Ny,NH);
 
-%Initialize Layers to device
-UR = urd * ones(Nx,Ny,2);
-ER = erd * ones(Nx,Ny,2);
-L = [d1, d2];
-
-%Build Device (Layer 1)
-h = 0.5 * sqrt(3) * w;
-ny = round(h/dy);
-ny1 = round((Ny-ny)/2);
-ny2 = ny1+ny - 1;
-
-for ny = ny1:ny2
-  f = (ny - ny1) / (ny2 - ny1);
-  nx = round(f*w/Lx * Nx);
-  nx1 = 1 + floor((Nx - nx)/2);
-  nx2 = nx1 + nx;
-  ER(nx1:nx2,ny,1) = erR;
-end
-
-for layer = 1:length(L)
-    ERC(:,:,layer) = convmat(ER(:,:,layer),Nharmonics,Nharmonics);
-    URC(:,:,layer) = convmat(UR(:,:,layer),Nharmonics,Nharmonics);
-end
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%*******************************
 % Calculate Kx, Ky, Kz Matrices 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-ninc = sqrt(erR *urR);
-kinc = ninc.*[sind(theta)*cosd(phi),sind(theta)*sind(phi),cosd(theta)];
-k0 = 2*pi / lam0;
+%*******************************
+[Kx, Ky, KzT, KzR] = calcK(src,grid,NH);
 
-m = 1;
-n = 1;
-pqm = 1;
-pqn = 1;
-pq_bound = floor(Nharmonics/2);
-pq = -pq_bound:pq_bound;
+%******************
+% Calc Eigenmodes
+%******************
+[W0,V0,SG] = calcFreeSpace(Kx,Ky,N);
+[Wref, Sref] = calcReflectionSide(Kx,Ky,KzR,N,W0,V0,grid); 
+[Wtrn, Strn] = calcTransmissionSide(Kx,Ky,KzT,N,W0,V0,grid); 
 
-while(m <= Nharmonics^2)
-  kx(m) = kinc(1) - pq(pqm)*(2*pi) / (k0*Lx); 
-  n = 1;
-  pqn = 1;
-  while(n <= Nharmonics^2)
-    ky(n) = kinc(2) - pq(pqn)*(2*pi) / (k0*Ly);
-    kz_ref(m,n) = conj(sqrt(urR*erR - kx(m)^2 - ky(n)^2));
-    kz_trn(m,n) = conj(sqrt(urT*erT - kx(m)^2 - ky(n)^2)); 
-    if(mod(n,Nharmonics) == 0)
-        pqn = pqn+1;
-    end
-    n=n+1;
-  end
-  if(mod(pqm,Nharmonics) == 0)
-    pqm = 0;
-  end
-  m = m+1;
-  pqm = pqm+1;
-end
+%Initialize Global Scattering Matrix
+SG.S11 = zeros(2*N,2*N);
+SG.S12 = eye(2*N);
+SG.S21 = eye(2*N);
+SG.S22 = zeros(2*N,2*N);
 
-Kx = diag(kx(:));
-Ky = diag(ky(:));
-Kz_ref = conj(diag(diag(kz_ref(:,:))));
-Kz_trn = conj(diag(diag(kz_trn(:,:))));
+%********************************
+%   Calc Global Scattering Matrix
+%********************************
+ for layer = 1:length(grid.L)                                                                                                                        
+    Si = calcLayer(Kx,Ky,N,W0,V0,grid,device,layer);
+    SG = star(SG,Si);
+ end
+ SG = star(Sref,SG);
+ SG = star(SG,Strn);
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%   Free Space Calculation
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Kz_0 = conj(sqrt(eye(Nharmonics^2) - Kx.^2 - Ky.^2));
-
-Q0 = zeros(2*Nharmonics^2,2*Nharmonics^2);
-Q0(1:Nharmonics^2,1:Nharmonics^2) = Kx * Ky;
-Q0(Nharmonics^2+1:end,Nharmonics^2+1:end) = -Kx * Ky;
-Q0(1:Nharmonics^2,Nharmonics^2+1:end) = eye(Nharmonics^2) - Kx.^2;
-Q0(Nharmonics^2+1:end,1:Nharmonics^2) = Ky.^2 - eye(Nharmonics^2);
-
-W0 = eye(2*Nharmonics^2);
-
-LAM0 = zeros(2*Nharmonics^2,2*Nharmonics^2);
-LAM0(1:Nharmonics^2,1:Nharmonics^2) = 1j.*Kz_0;
-LAM0(Nharmonics^2+1:end,Nharmonics^2+1:end) = 1j.*Kz_0;
-
-V0 = Q0 * inv(LAM0);
-
-SG.S11 = zeros(2*Nharmonics^2,2*Nharmonics^2);
-SG.S21 = eye(2*Nharmonics^2);
-SG.S12 = eye(2*Nharmonics^2);
-SG.S22 = zeros(2*Nharmonics^2,2*Nharmonics^2);
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%   Reflection Side Calculation
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Qref = zeros(2*Nharmonics^2,2*Nharmonics^2);
-Qref(1:Nharmonics^2,1:Nharmonics^2) = Kx * Ky;
-Qref(1:Nharmonics^2,Nharmonics^2+1:end) = urR*erR * eye(Nharmonics^2) - Kx.^2;
-Qref(Nharmonics^2+1:end,1:Nharmonics^2) = Ky.^2 - urR*erR * eye(Nharmonics^2);
-Qref(Nharmonics^2+1:end,Nharmonics^2+1:end) = -Ky * Kx;
-Qref = Qref ./ urR;
-
-Wref = eye(2*Nharmonics^2);
-
-LAMref = zeros(2*Nharmonics^2,2*Nharmonics^2);
-LAMref(1:Nharmonics^2,1:Nharmonics^2) = -1 * conj(1j.*Kz_ref);
-LAMref(Nharmonics^2+1:end,Nharmonics^2+1:end) = -1 * conj(1j.*Kz_ref);
-
-Vref = Qref * inv(LAMref);
-
-Aref = inv(W0)*Wref + inv(V0)*Vref;
-Bref = inv(W0)*Wref - inv(V0)*Vref;
-
-Sref.S11 = -inv(Aref)*Bref;
-Sref.S12 = 2*inv(Aref);
-Sref.S21 = 0.5*(Aref - Bref*inv(Aref)*Bref);
-Sref.S22 = Bref*inv(Aref);
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%   Transmission Side Calculation
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Qtrn = zeros(2*Nharmonics^2,2*Nharmonics^2);
-Qtrn(1:Nharmonics^2,1:Nharmonics^2) = Kx * Ky;
-Qtrn(1:Nharmonics^2,Nharmonics^2+1:end) = urT*erT * eye(Nharmonics^2) - Kx.^2;
-Qtrn(Nharmonics^2+1:end,1:Nharmonics^2) = Ky.^2 - urT*erT * eye(Nharmonics^2);
-Qtrn(Nharmonics^2+1:end,Nharmonics^2+1:end) = -Ky * Kx;
-Qtrn = Qtrn ./ urT;
-
-Wtrn = eye(2*Nharmonics^2);
-
-LAMtrn = zeros(2*Nharmonics^2,2*Nharmonics^2);
-LAMtrn(1:Nharmonics^2,1:Nharmonics^2) = -1*conj(1j.*Kz_trn);
-LAMtrn(Nharmonics^2+1:end,Nharmonics^2+1:end) = -1*conj(1j.*Kz_trn);
-
-Vtrn = Qtrn * inv(LAMtrn);
-
-Atrn = inv(W0)*Wtrn + inv(V0)*Vtrn;
-Btrn = inv(W0)*Wtrn - inv(V0)*Vtrn;
-
-Strn.S11 = Btrn*inv(Atrn);
-Strn.S12 = 0.5*(Atrn - Btrn*inv(Atrn)*Btrn);
-Strn.S21 = 2*inv(Atrn);
-Strn.S22 = -inv(Atrn)*Btrn;
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%   Layer Loop Calculation
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-for layer = 1:length(L)
-  Pi = zeros(2*Nharmonics^2,2*Nharmonics^2);
-  Pi(1:Nharmonics^2,1:Nharmonics^2) = Kx*inv(ERC(:,:,layer))*Ky; 
-  Pi(Nharmonics^2+1:end,1:Nharmonics^2) = Ky*inv(ERC(:,:,layer))*Ky - URC(:,:,layer);
-  Pi(1:Nharmonics^2,Nharmonics^2+1:end) = URC(:,:,layer) - Kx*inv(ERC(:,:,layer))*Kx;  
-  Pi(Nharmonics^2+1:end,Nharmonics^2+1:end) = -Ky*inv(ERC(:,:,layer))*Kx;
-  
-  Qi = zeros(2*Nharmonics^2,2*Nharmonics^2);    
-  Qi(1:Nharmonics^2,1:Nharmonics^2) = Kx*inv(URC(:,:,layer))*Ky;
-  Qi(Nharmonics^2+1:end,1:Nharmonics^2) = Ky*inv(URC(:,:,layer))*Ky - ERC(:,:,layer); 
-  Qi(1:Nharmonics^2,Nharmonics^2+1:end) = ERC(:,:,layer) - Kx*inv(URC(:,:,layer))*Kx;
-  Qi(Nharmonics^2+1:end,Nharmonics^2+1:end) = -Ky*inv(URC(:,:,layer))*Kx;
-  
-  [Wi, LAMi] = eig(Pi*Qi);
-  LAMi = sqrt(LAMi);
-  Vi = Qi*Wi*inv(LAMi);
-
-  Ai = inv(Wi)*W0 + inv(Vi)*V0;
-  Bi = inv(Wi)*W0 - inv(Vi)*V0;
-  Xi = expm(-LAMi*k0*L(layer));
-  
-  Si.S11 = inv(Ai - Xi*Bi*inv(Ai)*Xi*Bi) * (Xi*Bi*inv(Ai)*Xi*Ai - Bi);
-  Si.S12 = inv(Ai - Xi*Bi*inv(Ai)*Xi*Bi) * Xi*(Ai - Bi*inv(Ai)*Bi);
-  Si.S21 = Si.S12;
-  Si.S22 = Si.S11;
-  
-  SG = star(SG,Si);
-end
-
-%Create Final S-Matrix
-SG = star(Sref,SG);
-SG = star(SG,Strn);
-
-%***************************
+%**********************
 %   Post-Processing
-%***************************
-delta = zeros(Nharmonics^2,1);
-delta(ceil(Nharmonics^2 / 2),1) = 1;
+%**********************
 
-px = delta .* ptm;
-py = delta .* pte;
+%Calculate Source Mode Coefficients
+csrc = inv(Wref) * src.esrc;
 
-%%%%%%%%%%%%%%%%%%%%%%
-%   Mode Calculations
-%%%%%%%%%%%%%%%%%%%%%%
-esrc = [px; py];
-csrc = inv(Wref) * esrc;
+%**********************
+%   REFLECTED FIELDS
+%**********************
+eref = Wref * SG.S11 * csrc;
+rx = eref(1:N);
+ry = eref(N+1:end);
+rz = - inv(KzR) * (Kx*rx + Ky*ry);
+R = abs(rx).^2 + abs(ry).^2 + abs(rz).^2;
+kzInc = cos(src.theta)*sqrt(grid.erR * grid.urR);
 
-cref = SG.S11 * csrc;
-ctrn = SG.S21 * csrc;
+R = real(-KzR / kzInc) * R;
+REF = sum(R)
+R = reshape(R,[NH,NH]);
 
-%%%%%%%%%%%%%%%%%%%%%
-%   Compute Fields
-%%%%%%%%%%%%%%%%%%%%%
-eref = Wref * cref;
-etrn = Wtrn * ctrn;
+%***********************
+%   TRANSMITTED FIELDS
+%***********************
+etrn = Wtrn * SG.S21 * csrc;
+tx = etrn(1:N);
+ty = etrn(N+1:end);
+tz = -inv(KzT) * (Kx*tx + Ky*ty);
+T = abs(tx).^2 + abs(ty).^2 + abs(tz).^2;
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%   Compute Reflection / Transmission
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-rx = eref(1:Nharmonics^2);
-ry = eref(Nharmonics^2+1:end);
-rz = inv(Kz_ref) * (Kx*rx + Ky*ry);
-rmag = abs(rx).^2 + abs(ry).^2 + abs(rz).^2;
-R = real(Kz_ref / kinc(3)) * rmag;
-Reflection = sum(R)
-R = reshape(R,[Nharmonics,Nharmonics]);
+T = real((grid.urR / grid.urT) * KzT / kzInc) * T;
+TRN = sum(T)
+T = reshape(T,[NH,NH]);
 
-tx = etrn(1:Nharmonics^2);
-ty = etrn(Nharmonics^2+1:end);
-tz = -inv(Kz_trn) * (Kx*tx + Ky*ty);
-tmag = abs(tx).^2 + abs(ty).^2 + abs(tz).^2;
-T = real(Kz_trn / kinc(3)) * tmag;
-Transmission = sum(T)
-T = reshape(T,[Nharmonics,Nharmonics]);
+
 
 
 
