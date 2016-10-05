@@ -1,26 +1,26 @@
-function [ g, Ny ] = setupGrid( fileName, Nx )
+function [g] = setupGrid( fileName )
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
-%*****************
-% Layer Parameters
-%*****************
-g.lam0 = 2 * 10^-2;   %Free space wavelength
-g.Lx = 17.5 * 10^(-3);  %period in x-direction
-g.Ly = 15 * 10^(-3);    %period in y-direction
-d1 = 5 * 10^(-3);     %thickness of layer 1
-d2 = 3 * 10^(-3);     %thickness of layer 2
+fb = importdata(fileName);
+g.lam0 = fb(1);
+g.Lx = fb(2);
+g.Ly = fb(3);
+g.Nx = fb(4);
+g.Ny = fb(5);
+g.dx = g.Lx / g.Nx;
+g.dy = g.Ly / g.Ny;
+g.urR = fb(6);
+g.erR = fb(7);
+g.urT = fb(8);
+g.erT = fb(9);
+L = fb(10);
 
-Ny = round(Nx * g.Ly / g.Lx); %y points in real-space grid
-
-%***********************
-%   Discrete Parameters
-%***********************
-g.dx = g.Lx / Nx;       %grid resolution in x
-g.dy = g.Ly / Ny;       %grid resolution in y
-
-g.L = [d1; d2];
-
+Ldim = [];
+for i = 1:L
+    Ldim = [fb(10 + i) Ldim];
+end
+g.L = Ldim;
 
 end
 

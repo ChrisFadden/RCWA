@@ -1,0 +1,37 @@
+*********************************
+*	TEMPLATE
+*********************************
+
+************
+*	Grid.dat
+************
+lam0 = 0.002	Free Space Wavelength (m)
+Lx	= 0.0175	Length in X Direction (m)
+Ly 	= 0.0150	Length in Y Direction (m)
+Nx	= 512		Number of Grid Points X-direction
+Ny	= 512 		Number of Grid Points Y-direction
+urR	= 1.0		Permeability of Reflection Region
+erR	= 2.0 		Permittivity of Reflection Region
+urT	= 1.0		Permeability of Transmission Region
+erT	= 9.0 		Permittivity of Transmission Region 
+Lnum 	= 2		Number of layers in device
+L1	= 0.005		Length of Layer 1 (m)
+L2 	= 0.003		Length of Layer 2 (m)
+
+*****************
+*	ER_Layer1.dat
+*****************
+6.0 6.0 6.0 6.0 ...
+6.0 6.0 6.0 6.0 ...
+6.0 6.0 6.0 6.0 ...
+6.0 6.0 6.0 6.0 ...
+... ... ... ... ...
+
+*****************
+*	UR_Layer1.dat
+*****************
+1.0 1.0 1.0 1.0 ...
+1.0 1.0 1.0 1.0 ...
+1.0 1.0 1.0 1.0 ...
+1.0 1.0 1.0 1.0 ...
+... ... ... ... ...

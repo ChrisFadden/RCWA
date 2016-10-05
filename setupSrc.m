@@ -4,10 +4,10 @@ function [ src ] = setupSrc( fileName,N)
 
 degrees = pi / 180;
 
-src.theta = 60 * degrees;   %Elevation Incident Angle
-src.phi = 30*degrees;       %Azimuthal Incident Angle
-src.pte = 1/sqrt(2);                %Source Polarization
-src.ptm = 1i/sqrt(2);                %Source Polarization
+src.theta = 0 * degrees;   %Elevation Incident Angle
+src.phi = 0 * degrees;       %Azimuthal Incident Angle
+src.pte = 1;               %Source Polarization
+src.ptm = 0;               %Source Polarization
 
 %Polarization unit vector
 n = [0; 0; 1];
@@ -23,14 +23,24 @@ end
 src.atm = cross(src.ate,k) / norm(cross(src.ate,k));
 
 %Compute source vector
-delta = zeros(N,1);
-delta(ceil(N/2)) = 1;
+esrcShape = zeros(sqrt(N),sqrt(N));
+center = ceil(sqrt(N)/2);
+
+%Plane Wave Example
+esrcShape(center,center) = 1;
+
+%Sine Wave Example
+%esrcShape(center-1,center-1) = 1;
+%esrcShape(center+1,center+1) = 1;
+
+esrcShape = reshape(esrcShape,[N,1]);
+
+%normalize
+esrcShape = esrcShape / norm(esrcShape);
 
 Esrcx = src.ate(1)*src.pte + src.atm(1)*src.ptm;
 Esrcy = src.ate(2)*src.pte + src.atm(2)*src.ptm;
 
-src.esrc = [Esrcx .* delta; Esrcy .* delta];
-
-
+src.esrc = [Esrcx .* esrcShape; Esrcy .* esrcShape];
 end
 
